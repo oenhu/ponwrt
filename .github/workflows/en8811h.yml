@@ -1,0 +1,54 @@
+name: EN8811H driver compile
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'target/linux/airoha/patches-6.18/790-net-phy-air-en8811h-port-v2.0.7.patch'
+      - 'target/linux/generic/backport-6.18/785-*.patch'
+      - 'target/linux/generic/backport-6.18/786-*.patch'
+      - 'target/linux/generic/kernel-6.18'
+      - 'target/linux/airoha/Makefile'
+      - 'scripts/ci/check-en8811h.sh'
+      - '.github/workflows/en8811h.yml'
+  push:
+    paths:
+      - 'target/linux/airoha/patches-6.18/790-net-phy-air-en8811h-port-v2.0.7.patch'
+      - 'target/linux/generic/backport-6.18/785-*.patch'
+      - 'target/linux/generic/backport-6.18/786-*.patch'
+      - 'target/linux/generic/kernel-6.18'
+      - 'target/linux/airoha/Makefile'
+      - 'scripts/ci/check-en8811h.sh'
+      - '.github/workflows/en8811h.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: en8811h-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install ARM64 build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gcc-aarch64-linux-gnu bc bison flex \
+            libssl-dev libelf-dev curl xz-utils patch file
+      - name: Check patch application and compile all diagnostic configurations
+        run: bash scripts/ci/check-en8811h.sh "$RUNNER_TEMP/en8811h-check"
+      - name: Preserve configurations and build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: en8811h-arm64-compile
+          path: |
+            ${{ runner.temp }}/en8811h-check/*.log
+            ${{ runner.temp }}/en8811h-check/*.config
+            ${{ runner.temp }}/en8811h-check/*.o
+          if-no-files-found: warn
