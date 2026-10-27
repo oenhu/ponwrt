@@ -52,43 +52,20 @@ define Device/FitImageLzma
 	KERNEL_NAME := Image
 endef
 
-define Device/airoha_an7581-evb
+define Device/airoha_an7581-evb-multievb
   $(call Device/FitImageLzma)
   DEVICE_VENDOR := Airoha
-  DEVICE_MODEL := AN7581 Evaluation Board (SNAND)
-  DEVICE_PACKAGES := kmod-leds-pwm kmod-pwm-airoha kmod-input-gpio-keys-polled
-  DEVICE_DTS := an7581-evb
-  DEVICE_DTS_CONFIG := config@1
+  DEVICE_MODEL := AN7581 Evaluation Board (Multi-evb)
+  DEVICE_PACKAGES := kmod-leds-pwm kmod-pwm-airoha kmod-input-gpio-keys-polled airoha-en7581-npu-firmware \
+    kmod-mt7992-firmware airoha-en7581-mt7996-npu-firmware kmod-mt7996-firmware wpad-openssl
+  DEVICE_DTS := an7581-evb-multievb
+  DEVICE_DTS_OVERLAY := an7581-evb an7581-evb-emmc-eagle an7581-evb-emmc-kite
   IMAGE/sysupgrade.bin := append-kernel | pad-to 128k | append-rootfs | pad-rootfs | append-metadata
   ARTIFACT/preloader.bin := an7581-preloader rfb
   ARTIFACT/bl31-uboot.fip := an7581-bl31-uboot rfb
   ARTIFACTS := preloader.bin bl31-uboot.fip
 endef
-TARGET_DEVICES += airoha_an7581-evb
-
-define Device/airoha_an7581-evb-emmc-eagle
-  DEVICE_VENDOR := Airoha
-  DEVICE_MODEL := AN7581 Evaluation Board (eMMC + Eagle)
-  DEVICE_DTS := an7581-evb-emmc-eagle
-  DEVICE_PACKAGES := airoha-en7581-mt7996-npu-firmware \
-		    kmod-mt7996-firmware wpad-openssl
-  ARTIFACT/preloader.bin := an7581-preloader rfb
-  ARTIFACT/bl31-uboot.fip := an7581-bl31-uboot rfb
-  ARTIFACTS := preloader.bin bl31-uboot.fip
-endef
-TARGET_DEVICES += airoha_an7581-evb-emmc-eagle
-
-define Device/airoha_an7581-evb-emmc-kite
-  DEVICE_VENDOR := Airoha
-  DEVICE_MODEL := AN7581 Evaluation Board (eMMC + Kite)
-  DEVICE_DTS := an7581-evb-emmc-kite
-  DEVICE_PACKAGES := airoha-en7581-npu-firmware \
-		    kmod-mt7992-firmware wpad-openssl
-  ARTIFACT/preloader.bin := an7581-preloader rfb
-  ARTIFACT/bl31-uboot.fip := an7581-bl31-uboot rfb
-  ARTIFACTS := preloader.bin bl31-uboot.fip
-endef
-TARGET_DEVICES += airoha_an7581-evb-emmc-kite
+TARGET_DEVICES += airoha_an7581-evb-multievb
 
 define Device/gemtek_w1700k-ubi
   DEVICE_VENDOR := Gemtek
@@ -110,7 +87,7 @@ define Device/gemtek_w1700k-ubi
        the end of flash. A reinstall including corrected chainloader is needed.
   DEVICE_PACKAGES := airoha-en7581-mt7996-npu-firmware fitblk \
 		    kmod-hwmon-nct7802 kmod-mt7996-firmware wpad-openssl \
-		    rtl826x-firmware
+		    rtl826x-firmware rtl8261c-firmware
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -173,7 +150,6 @@ define Device/fiberhome_hg5382a
   DEVICE_VENDOR := FiberHome
   DEVICE_MODEL := HG5382A
   DEVICE_DTS := an7581-fiberhome-hg5382a
-  DEVICE_DTS_CONFIG := config@1
   KERNEL_LOADADDR := 0x8c000000
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -198,7 +174,6 @@ TARGET_DEVICES += fiberhome_hg5382a
 define Device/fiberhome_hg5585f-common
   $(call Device/FitImageLzma)
   DEVICE_VENDOR := FiberHome
-  DEVICE_DTS_CONFIG := config@1
   KERNEL_LOADADDR := 0x8a000000
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -269,7 +244,6 @@ TARGET_DEVICES += fiberhome_hg5585f-cu-usb-sfp
 define Device/znxt_zn50xg-d-common
   DEVICE_VENDOR := ZNXT
   DEVICE_VARIANT := (UBI)
-  DEVICE_DTS_CONFIG := config-1
   # 0x8a000000 follows NPU/QDMA reserved memory and holds recovery decompression.
   KERNEL_LOADADDR := 0x8a000000
   BLOCKSIZE := 128k
@@ -317,7 +291,6 @@ define Device/unionman_ung00a
   DEVICE_VENDOR := Unionman
   DEVICE_MODEL := UNG00A
   DEVICE_DTS := an7581-unionman-ung00a
-  DEVICE_DTS_CONFIG := config@1
   KERNEL_LOADADDR := 0x8a000000
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -336,6 +309,33 @@ define Device/unionman_ung00a
 	 airoha-ponctl airoha-pond fitblk nand-utils ubi-utils
 endef
 TARGET_DEVICES += unionman_ung00a
+
+define Device/h3c_hm2004-du
+  $(call Device/FitImageLzma)
+  DEVICE_VENDOR := H3C
+  DEVICE_MODEL := HM2004-DU
+  DEVICE_DTS := an7581-h3c-hm2004-du
+  KERNEL_LOADADDR := 0x8a000000
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  UBOOTENV_IN_UBI := 1
+  KERNEL_IN_UBI := 1
+  KERNEL := kernel-bin | gzip
+  KERNEL_INITRAMFS = kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(DEVICE_DTS).dtb with-initrd | pad-to 128k
+  KERNEL_INITRAMFS_SUFFIX := -recovery.itb
+  IMAGES := sysupgrade.itb
+  IMAGE/sysupgrade.itb = append-kernel | \
+	fit gzip $$(KDIR)/image-$$(DEVICE_DTS).dtb external-static-with-rootfs | \
+	append-metadata
+  DEVICE_PACKAGES := kmod-gpio-button-hotplug kmod-leds-gpio \
+	 kmod-usb3 kmod-usb-ledtrig-usbport \
+	 kmod-phy-airoha-en8811h kmod-airoha-en7572 kmod-airoha-xpon \
+	 airoha-ponctl airoha-pond \
+	 kmod-mt7915e kmod-mt7916-firmware wpad-openssl \
+	 fitblk nand-utils ubi-utils $(AIROHA_USB_STORAGE_PACKAGES)
+endef
+TARGET_DEVICES += h3c_hm2004-du
 
 define Device/nokia_xg-040g-md-common
   $(call Device/FitImageLzma)
